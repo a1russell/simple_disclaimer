@@ -1,0 +1,6 @@
+name = Simple Disclaimer
+description = Disclaimer is shown before user is allowed to enter the site
+core = 7.x
+dependencies[] = user
+php = 5.3.0
+stylesheets[all][] = css/simple_disclaimer.css

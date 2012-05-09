@@ -1,0 +1,10 @@
+div.simple-disclaimer {
+  background: #efeed7 url(../img/disclaimer_icon.gif) no-repeat top left;
+  border: 1px solid #b1b159;
+  clear: both;
+  font-size: 10px;
+  line-height: 130%;
+  margin: 0 20px;
+  padding: 20px;
+  text-align:justify;
+}
