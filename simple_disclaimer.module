@@ -1,123 +1,152 @@
 <?php
+module_load_include('inc', 'simple_disclaimer', 'includes/configuration_form');
+module_load_include('inc', 'simple_disclaimer', 'includes/disclaimer_form');
+
 
 /**
- * @file
- * simple_disclaimer module functions.
- */
-
- /**
  * Implements hook_init().
  */
 function simple_disclaimer_init() {
-  // Redirect user to disclaimer if user has not previously acknowledged it.
+  // Redirect user to disclaimer page if user has not previously acknowledged it.
   // This is safe to do in hook_init() implementation because
   // even though hook_init() is not called on cached pages,
   // pages aren't cached for authenticated users. See:
   // http://drupal.org/documentation/modules/system
   global $user;
-  $redirect_whitelist = "/^(?:simple_disclaimer$|user\/logout$|user$|login$|" .
-  "user\/password$|login\/password$|user\/reset\/|login\/reset\/)/";
+  $uid = $user->uid;
+  $redirect_whitelist = "/^(?:disclaimer$|user\/logout$|user$|login$|user\/password$|login\/password$|user\/\d+\/edit$|user\/reset\/|login\/reset\/)/";
   $whitelisted = preg_match($redirect_whitelist, request_path());
-  if ($user->uid != 0 && $user->uid != 1 && !$whitelisted && !simple_disclaimer_user_has_ack($user->uid)) {
-    unset($_REQUEST['destination'], $_REQUEST['edit']['destination']);
-    // drupal_get_destination() returns an array in Drupal 7, but returned a
-    // string in Drupal 6.
-    // drupal_get_path_alias() returns an alias path if one is found, or the
-    // original path if no alias is found.
-    $alias['destination'] = drupal_get_path_alias(request_path());
-    drupal_goto('simple_disclaimer', array('query' => $alias));
+  if ($user->uid != 0 && !$whitelisted && !disclaimer_user_has_ack($user->uid) && disclaimer_admin() != 0) {
+    if (!array_key_exists('simple_disclaimer_redirect_count', $_SESSION) ||
+        $_SESSION['simple_disclaimer_redirect_count'] > 1) {
+      $_SESSION['simple_disclaimer_redirect_count'] = 0;
+    }
+    ++$_SESSION['simple_disclaimer_redirect_count'];
+    if ($_SESSION['simple_disclaimer_redirect_count'] < 2) {
+      unset($_REQUEST['destination'], $_REQUEST['edit']['destination']);
+      $alias['destination'] = drupal_get_path_alias(request_path());
+      drupal_goto('disclaimer', array('query'=>$alias));
+    }
   }
 }
+
 
 /**
  * Implements hook_menu().
  */
 function simple_disclaimer_menu() {
-  $items['simple_disclaimer'] = array(
-    'title' => 'Disclaimer',
+  $items['admin/config/user-interface/disclaimer'] = array(
+    'title' => t('Disclaimer Configuration'),
+    'description' => 'Configuration for the disclaimer module',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('simple_disclaimer_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['disclaimer'] = array(
+    'title' => t('Disclaimer'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('disclaimer_form'),
     'access callback' => TRUE,
     'type' => MENU_NORMAL_ITEM,
   );
   return $items;
 }
 
+
 /**
  * Implements hook_theme().
  */
 function simple_disclaimer_theme($existing, $type, $theme, $path) {
   return array(
-    'simple_disclaimer_form' => array(
-    'template' => 'simple-disclaimer',
-    'render element' => 'form',
+    'disclaimer_form' => array(
+      'function' => 'theme_disclaimer_form',
+      'render element' => 'form',
     ),
   );
 }
 
+
 /**
  * Custom function to determine whether user has acknowledged disclaimer.
  */
-function simple_disclaimer_user_has_ack($uid) {
+function disclaimer_user_has_ack($uid) {
   $ack_query_str = <<< 'EOD'
     SELECT ack
-    FROM {simple_disclaimer}
+    FROM {disclaimer_user_status}
     WHERE uid = :uid;
 EOD;
   $ack= db_query($ack_query_str, array(':uid' => $uid))->fetchField();
   return (bool) $ack;
 }
 
-/**
- * Custom disclaimer form.
- */
-function simple_disclaimer_form($form, &$form_state) {
-  $form['#theme'] = 'simple_disclaimer_form';
-  $form['ack'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('I have read and acknowledge this disclaimer.'),
-    '#default_value' => 0,
-  );
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save'),
-  );
-  return $form;
-}
 
 /**
- * Validation for disclaimer form.
+ * Custom function to determine whether user role is required to acknowledge disclaimer.
  */
-function simple_disclaimer_form_validate($form, &$form_state) {
-  // Disclaimer must be acknowledged.
-  if ($form_state['values']['ack'] != 1) {
-     form_set_error('ack', t('You must acknowledge the disclaimer in order to proceed.'));
-  } 
-}
-
-/**
- * Disclaimer form submission.
- */
-function simple_disclaimer_form_submit($form, &$form_state) {
+function disclaimer_user_role_has_ack() {
   global $user;
-  $uid = $user->uid;
-  $ack = $form_state['values']['ack'];
-  // Log out if disclaimer was not acknowledged.	
-  /*
-  if (!$ack) {
-    module_load_include('inc', 'user', 'user.pages');
-    user_logout();
+  $user_roles = array();
+
+  $user_role_query_str = <<< 'EOD'
+    SELECT d.rid, d.role_name
+    FROM {disclaimer} AS d
+    WHERE d.disclaimer != ''
+    ORDER BY d.rid ASC;
+EOD;
+  $result = db_query($user_role_query_str);
+
+  foreach ($result as $record) {
+    $user_roles[$record->rid] = $record->role_name;
   }
-  */
-  // Check for prior acknowledgment.
-  $exists= db_query('SELECT COUNT(*) FROM {simple_disclaimer} c WHERE c.uid = :uid', array(':uid' => $uid))->fetchField();
-  // Save acknowledgment
-  if(!$exists && $uid !=0) {
-    $record = array(
-      'uid' => $uid,
-      'ack' => $ack,
-    );
-    drupal_write_record('simple_disclaimer', $record);
-  } 
-  drupal_goto('home');
+
+  $exists = '';
+
+  // In Drupal, "authenticated user" role (id 2) is granted to all logged in users automatically.
+  $user_roles = $user->roles;
+  if (count($user_roles) > 1) {
+    foreach ($user_roles as $rid => $role_name) {
+      // Check for "authenticated user" role.
+      if ($rid == 2) {
+        unset($user_roles[$rid]);
+      }
+    }
+
+    foreach ($user_roles as $rid => $role_name) {
+      if(in_array($role_name, array_values($user_roles))) {
+        $exists = 1;
+      }
+    }
+  }
+
+  // Check for count($user->roles) == 1
+  else {
+    foreach ($user_roles as $rid => $role_name) {
+      if (in_array($role_name, array_values($user_roles))) {
+        $exists = 1;
+      }
+    }
+  }
+
+  return (bool) $exists;
+}
+
+
+
+/**
+ * Custom function to determine whether admin has submitted any disclaimer previuosly.
+ * If count($disclaimer) is 0 then user should not be redirected to disclaimer page.
+ */
+function disclaimer_admin() {
+  $disclaimer = array();
+  $disclaimer_query_str = <<< 'EOD'
+    SELECT DISTINCT d.disclaimer
+    FROM {disclaimer} AS d
+    WHERE d.disclaimer != '';
+EOD;
+  $result= db_query($disclaimer_query_str);
+  foreach($result as $record) {
+    $disclaimer[] = $record->disclaimer;
+  }
+  return count($disclaimer);
 }

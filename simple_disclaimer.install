@@ -1,31 +1,58 @@
 <?php
-
-/**
- * @file
- * Install, update, and uninstall functions for the simple_disclaimer module.
- */
-
 /**
  * Implements hook_schema().
  */
 function simple_disclaimer_schema() {
-  $schema['simple_disclaimer'] = array(
-    'description' => 'Status of users\' acknowledgement of the disclaimer',
+  $schema['disclaimer'] = array(
+    'description' => t('Disclaimer and the role information that administrator provides.'),
     'fields' => array(
       'id' => array(
-        'description' => 'Primary identifier',
+        'description' => t('Primary identifier'),
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'rid' => array(
+        'description' => t('Refers to {role}.rid'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'role_name' => array(
+        'description' => t('Refers to {role}.name'),
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'disclaimer' => array(
+        'description' => t('Paragraph describing the disclaimer.'),
+        'type' => 'varchar',
+        'length' => 5000,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['disclaimer_user_status'] = array(
+    'description' => t('Status of users\' acknowledgement of the disclaimer'),
+    'fields' => array(
+      'id' => array(
+        'description' => t('Primary identifier'),
         'type' => 'serial',
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
       'uid' => array(
-        'description' => 'Refers to {users}.uid',
+        'description' => t('Refers to {users}.uid'),
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
       'ack' => array(
-        'description' => 'Acknowledgement status of user',
+        'description' => t('Acknowledgement status of user'),
         'type' => 'int',
         'size' => 'tiny',
         'not null' => TRUE,
@@ -40,9 +67,3 @@ function simple_disclaimer_schema() {
 
   return $schema;
 }
-
-
-/**
- * Implemention of hook_install() and hook_uninstall() is no longer required in
- * Drupal 7.  These hooks are called automatically.
- */
