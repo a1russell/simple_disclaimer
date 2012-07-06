@@ -16,7 +16,7 @@ function simple_disclaimer_init() {
   $uid = $user->uid;
   $redirect_whitelist = "/^(?:disclaimer$|user\/logout$|user$|login$|user\/password$|login\/password$|user\/\d+\/edit$|user\/reset\/|login\/reset\/)/";
   $whitelisted = preg_match($redirect_whitelist, request_path());
-  if ($user->uid != 0 && !$whitelisted && !disclaimer_user_has_ack($user->uid) && disclaimer_admin() != 0) {
+  if ($user->uid != 0 && !$whitelisted && !disclaimer_user_has_ack($user->uid) && disclaimer_configured()) {
     if (!array_key_exists('simple_disclaimer_redirect_count', $_SESSION) ||
         $_SESSION['simple_disclaimer_redirect_count'] > 1) {
       $_SESSION['simple_disclaimer_redirect_count'] = 0;
@@ -55,6 +55,19 @@ function simple_disclaimer_menu() {
 
 
 /**
+ * Implements hook_permission().
+ */
+function simple_disclaimer_permission() {
+  return array(
+    'simple_disclaimer_exemption' => array(
+      'title' => t('Exempt from disclaimer'),
+      'description' => t('Not required to acknowledge disclaimer.'),
+    ),
+  );
+}
+
+
+/**
  * Implements hook_theme().
  */
 function simple_disclaimer_theme($existing, $type, $theme, $path) {
@@ -72,79 +85,18 @@ function simple_disclaimer_theme($existing, $type, $theme, $path) {
  */
 function disclaimer_user_has_ack($uid) {
   global $user;
-  $ack = is_array($user->data) &&
-         array_key_exists('simple_disclaimer_ack', $user->data) &&
-         (bool) $user->data['simple_disclaimer_ack'];
+  $ack = user_access('simple_disclaimer_exemption', $user) ||
+         (is_array($user->data) &&
+          array_key_exists('simple_disclaimer_ack', $user->data) &&
+          (bool) $user->data['simple_disclaimer_ack']);
   return $ack;
 }
 
 
 /**
- * Custom function to determine whether user role is required to acknowledge disclaimer.
+ * Custom function to determine whether disclaimer has been configured.
  */
-function disclaimer_user_role_has_ack() {
-  global $user;
-  $user_roles = array();
-
-  $user_role_query_str = <<< 'EOD'
-    SELECT d.rid, d.role_name
-    FROM {disclaimer} AS d
-    WHERE d.disclaimer != ''
-    ORDER BY d.rid ASC;
-EOD;
-  $result = db_query($user_role_query_str);
-
-  foreach ($result as $record) {
-    $user_roles[$record->rid] = $record->role_name;
-  }
-
-  $exists = '';
-
-  // In Drupal, "authenticated user" role (id 2) is granted to all logged in users automatically.
-  $user_roles = $user->roles;
-  if (count($user_roles) > 1) {
-    foreach ($user_roles as $rid => $role_name) {
-      // Check for "authenticated user" role.
-      if ($rid == 2) {
-        unset($user_roles[$rid]);
-      }
-    }
-
-    foreach ($user_roles as $rid => $role_name) {
-      if(in_array($role_name, array_values($user_roles))) {
-        $exists = 1;
-      }
-    }
-  }
-
-  // Check for count($user->roles) == 1
-  else {
-    foreach ($user_roles as $rid => $role_name) {
-      if (in_array($role_name, array_values($user_roles))) {
-        $exists = 1;
-      }
-    }
-  }
-
-  return (bool) $exists;
-}
-
-
-
-/**
- * Custom function to determine whether admin has submitted any disclaimer previuosly.
- * If count($disclaimer) is 0 then user should not be redirected to disclaimer page.
- */
-function disclaimer_admin() {
-  $disclaimer = array();
-  $disclaimer_query_str = <<< 'EOD'
-    SELECT DISTINCT d.disclaimer
-    FROM {disclaimer} AS d
-    WHERE d.disclaimer != '';
-EOD;
-  $result= db_query($disclaimer_query_str);
-  foreach($result as $record) {
-    $disclaimer[] = $record->disclaimer;
-  }
-  return count($disclaimer);
+function disclaimer_configured() {
+  $disclaimer = variable_get('simple_disclaimer');
+  return !is_null($disclaimer);
 }

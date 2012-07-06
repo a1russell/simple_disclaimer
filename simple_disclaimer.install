@@ -2,50 +2,11 @@
 
 
 /**
- * Implements hook_schema().
- */
-function simple_disclaimer_schema() {
-  $schema['disclaimer'] = array(
-    'description' => t('Disclaimer and the role information that administrator provides.'),
-    'fields' => array(
-      'id' => array(
-        'description' => t('Primary identifier'),
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'rid' => array(
-        'description' => t('Refers to {role}.rid'),
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'role_name' => array(
-        'description' => t('Refers to {role}.name'),
-        'type' => 'varchar',
-        'length' => 100,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-      'disclaimer' => array(
-        'description' => t('Paragraph describing the disclaimer.'),
-        'type' => 'varchar',
-        'length' => 5000,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-    ),
-    'primary key' => array('id'),
-  );
-
-  return $schema;
-}
-
-
-/**
  * Implements hook_uninstall().
  */
 function simple_disclaimer_uninstall() {
+  variable_del('simple_disclaimer');
+
   $users = entity_load('user');
   foreach ($users as $user_entity) {
     if (is_array($user_entity->data) &&

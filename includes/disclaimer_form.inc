@@ -5,8 +5,7 @@
  * Disclaimer form.
  */
 function disclaimer_form($form, &$form_state) {
-  // Enable form theming
-  $form['#theme'] = 'disclaimer_form';
+  $form['#theme'] = 'disclaimer_form';  // Enable form theming.
   $form['ack'] = array(
     '#type' => 'checkbox',
     '#title' => t('I have read and acknowledge this disclaimer.'),
@@ -40,7 +39,7 @@ function disclaimer_form_submit($form, &$form_state) {
   $uid = $user->uid;
   $ack = $form_state['values']['ack'];
 
-  // Save acknowledgment
+  // Save acknowledgment.
   if ($uid != 0) {
     $edit['data']['simple_disclaimer_ack'] = $ack;
     user_save($user, $edit);
@@ -52,31 +51,14 @@ function disclaimer_form_submit($form, &$form_state) {
  * Theme function for the dislaimer page.
  */
 function theme_disclaimer_form($variables) {
-  $output = '<div class="disclaimer-ack">';
-  $disclaimer = array();
+  $disclaimer = variable_get('simple_disclaimer', "");
 
-  // Populate disclaimer array with disclaimer message
-  $disclaimer_query_str = <<< 'EOD'
-    SELECT DISTINCT d.disclaimer
-    FROM {disclaimer} AS d
-    WHERE d.disclaimer != '';
-EOD;
-  $result= db_query($disclaimer_query_str);
-  foreach ($result as $record) {
-    $disclaimer[] = $record->disclaimer;
-  }
-
-  $output .=  "<p>{$disclaimer[0]}</p>";
-
-  // Isolate the form definition form the $variables array
   $form = $variables['form'];
 
-  // Form elements are rendered with drupal_render()
+  $output = '<div class="disclaimer-ack">';
+  $output .= "<p>{$disclaimer}</p>";
   $output .= drupal_render($form['ack']);
-
-  // Pass the remaining form elements through drupal_render_children()
   $output .= drupal_render_children($form);
-
   $output .= '</div>';
 
   return $output;
