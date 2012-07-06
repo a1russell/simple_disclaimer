@@ -25,7 +25,7 @@ function simple_disclaimer_init() {
     if ($_SESSION['simple_disclaimer_redirect_count'] < 2) {
       unset($_REQUEST['destination'], $_REQUEST['edit']['destination']);
       $alias['destination'] = drupal_get_path_alias(request_path());
-      drupal_goto('disclaimer', array('query'=>$alias));
+      drupal_goto('disclaimer', array('query' => $alias));
     }
   }
 }
@@ -71,13 +71,11 @@ function simple_disclaimer_theme($existing, $type, $theme, $path) {
  * Custom function to determine whether user has acknowledged disclaimer.
  */
 function disclaimer_user_has_ack($uid) {
-  $ack_query_str = <<< 'EOD'
-    SELECT ack
-    FROM {disclaimer_user_status}
-    WHERE uid = :uid;
-EOD;
-  $ack= db_query($ack_query_str, array(':uid' => $uid))->fetchField();
-  return (bool) $ack;
+  global $user;
+  $ack = is_array($user->data) &&
+         array_key_exists('simple_disclaimer_ack', $user->data) &&
+         (bool) $user->data['simple_disclaimer_ack'];
+  return $ack;
 }
 
 

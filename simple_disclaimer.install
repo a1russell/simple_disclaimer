@@ -36,34 +36,5 @@ function simple_disclaimer_schema() {
     'primary key' => array('id'),
   );
 
-  $schema['disclaimer_user_status'] = array(
-    'description' => t('Status of users\' acknowledgement of the disclaimer'),
-    'fields' => array(
-      'id' => array(
-        'description' => t('Primary identifier'),
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'uid' => array(
-        'description' => t('Refers to {users}.uid'),
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-      ),
-      'ack' => array(
-        'description' => t('Acknowledgement status of user'),
-        'type' => 'int',
-        'size' => 'tiny',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-    ),
-    'primary key' => array('id'),
-    'unique keys' => array(
-      'uid' => array('uid'),
-    ),
-  );
-
   return $schema;
 }

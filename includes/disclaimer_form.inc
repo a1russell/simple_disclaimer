@@ -40,16 +40,10 @@ function disclaimer_form_submit($form, &$form_state) {
   $uid = $user->uid;
   $ack = $form_state['values']['ack'];
 
-  // Check for prior acknowledgment.
-  $exists= db_query('SELECT COUNT(*) FROM {disclaimer_user_status} c WHERE c.uid = :uid', array(':uid' => $uid))->fetchField();
-
   // Save acknowledgment
-  if (!$exists && $uid !=0) {
-    $record = array(
-      'uid' => $uid,
-      'ack' => $ack,
-    );
-    drupal_write_record('disclaimer_user_status', $record);
+  if ($uid != 0) {
+    $edit['data']['simple_disclaimer_ack'] = $ack;
+    user_save($user, $edit);
   }
 }
 
