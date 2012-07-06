@@ -1,4 +1,6 @@
 <?php
+
+
 /**
  * Implements hook_schema().
  */
@@ -37,4 +39,19 @@ function simple_disclaimer_schema() {
   );
 
   return $schema;
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+function simple_disclaimer_uninstall() {
+  $users = entity_load('user');
+  foreach ($users as $user_entity) {
+    if (is_array($user_entity->data) &&
+        array_key_exists('simple_disclaimer_ack', $user_entity->data)) {
+      unset($user_entity->data['simple_disclaimer_ack']);
+      user_save($user_entity);
+    }
+  }
 }
